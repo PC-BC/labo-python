@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Labo Python</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<style>
+  :root{
+    --bg:#f4f6fa; --panel:#ffffff; --ink:#1d2433; --muted:#6b7385; --line:#dde2ec;
+    --accent:#2f6fde; --accent-ink:#fff; --ok:#1b8a4b; --err:#c2362b; --console:#0f1724; --console-ink:#e6edf6;
+    --fs:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+  header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .brand{font-weight:700;font-size:18px;white-space:nowrap}
+  .brand small{font-weight:400;color:var(--muted);font-size:12px;margin-left:4px}
+  #titre{flex:1 1 180px;min-width:120px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
+  .actions{display:flex;flex-wrap:wrap;gap:6px}
+  button,select{font:inherit;font-size:14px;padding:7px 11px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+  button:hover,select:hover{border-color:#b9c2d3}
+  button:disabled{opacity:.5;cursor:default}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  button.primary:hover{filter:brightness(1.07)}
+  main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;min-height:0}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  #editorPane .CodeMirror{flex:1;height:auto;font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:var(--fs);line-height:1.45}
+  .CodeMirror-gutters{background:#f7f8fb;border-right:1px solid var(--line)}
+  .paneHead{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .paneHead .spacer{flex:1}
+  .paneHead button{padding:3px 8px;font-size:12px}
+  #consolePane{background:var(--console);border-color:#1f2a3c}
+  #consolePane .paneHead{border-color:#1f2a3c;color:#9fb0c9}
+  #consolePane .paneHead button{background:#1a2536;color:#cfd9e8;border-color:#2b3a52}
+  #status{font-size:12px}
+  #status.ready{color:#5fd38d}
+  #status.busy{color:#ffcf5c}
+  #output{flex:1;overflow:auto;padding:10px 12px;margin:0;color:var(--console-ink);font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:var(--fs);line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  #output .err{color:#ff8a80}
+  #output .saisie{color:#7fd1ff}
+  #output .prompt{color:#9fb0c9}
+  #output .info{color:#7d8aa0;font-style:italic}
+  #output img{display:block;max-width:100%;background:#fff;border-radius:6px;margin:6px 0}
+  #repl{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid #1f2a3c;font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:var(--fs);color:#9fb0c9}
+  #replInput{flex:1;background:transparent;border:none;outline:none;color:var(--console-ink);font:inherit}
+  /* fenêtre de partage */
+  #modal{position:fixed;inset:0;background:rgba(15,23,36,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+  #modal[hidden]{display:none}
+  .card{background:#fff;border-radius:12px;max-width:640px;width:100%;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .card h2{margin:0 0 6px;font-size:18px}
+  .card p{margin:6px 0;color:var(--muted);font-size:14px}
+  .card textarea{width:100%;height:90px;font-family:Consolas,Menlo,monospace;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+  .card .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  .warn{color:var(--err)!important}
+  @media (max-width:820px){ main{grid-template-columns:1fr;grid-template-rows:1fr 1fr} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">🐍 Labo Python <small>Python 3 dans le navigateur</small></div>
+  <input id="titre" placeholder="Titre du programme (facultatif)" maxlength="80">
+  <div class="actions">
+    <button id="btnRun" class="primary" disabled title="Ctrl + Entrée">▶ Exécuter</button>
+    <select id="exemples" title="Charger un exemple"><option value="">📚 Exemples…</option></select>
+    <button id="btnShare" title="Créer un lien de partage">🔗 Partager</button>
+    <button id="btnNew" title="Nouveau programme">📄 Nouveau</button>
+    <button id="btnOpen" title="Ouvrir un fichier .py">📂 Ouvrir</button>
+    <button id="btnDownload" title="Télécharger le fichier .py">💾 .py</button>
+    <button id="btnSmaller" title="Réduire le texte">A−</button>
+    <button id="btnBigger" title="Agrandir le texte">A+</button>
+    <input type="file" id="fileInput" accept=".py,.txt,text/x-python,text/plain" hidden>
+  </div>
+</header>
+
+<main>
+  <section id="editorPane">
+    <div class="paneHead">Éditeur <span class="spacer"></span><span>Ctrl + Entrée pour exécuter</span></div>
+    <textarea id="code"></textarea>
+  </section>
+  <section id="consolePane">
+    <div class="paneHead">Console <span class="spacer"></span><span id="status" class="busy">Chargement de Python…</span><button id="btnClear">Effacer</button></div>
+    <div id="output"></div>
+    <div id="repl"><span>&gt;&gt;&gt;</span><input id="replInput" disabled placeholder="Tapez une instruction Python puis Entrée" autocomplete="off" spellcheck="false"></div>
+  </section>
+</main>
+
+<div id="modal" hidden>
+  <div class="card" role="dialog" aria-labelledby="mTitle">
+    <h2 id="mTitle">🔗 Lien de partage</h2>
+    <p id="mInfo">Le code est entièrement contenu dans ce lien : quiconque l'ouvre retrouve le programme et peut l'exécuter ou le modifier (sans toucher à votre version).</p>
+    <textarea id="mLink" readonly></textarea>
+    <p id="mWarn" class="warn" hidden></p>
+    <div class="row">
+      <button id="mCopy" class="primary">Copier le lien</button>
+      <button id="mClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+"use strict";
+const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+const DRAFT_KEY = "laboPython.brouillon";
+const FS_KEY = "laboPython.taille";
+
+/* ---------- Exemples ---------- */
+const EXEMPLES = [
+  { titre: "Bonjour + input()", code:
+`# Premier programme : afficher et demander une information
+prenom = input("Quel est ton prénom ? ")
+print("Bonjour", prenom, "!")
+
+age = int(input("Quel âge as-tu ? "))
+print("Dans 10 ans, tu auras", age + 10, "ans.")
+` },
+  { titre: "Boucle : °C → K", code:
+`# Table de conversion degrés Celsius -> kelvins
+print("θ (°C)   T (K)")
+for theta in range(-20, 101, 20):
+    T = theta + 273.15
+    print(f"{theta:6d}   {T:7.2f}")
+` },
+  { titre: "Courbe : décroissance radioactive", code:
+`import numpy as np
+import matplotlib.pyplot as plt
+
+N0 = 1000          # nombre initial de noyaux
+t12 = 5.0          # demi-vie (en jours)
+lam = np.log(2) / t12
+
+t = np.linspace(0, 30, 200)
+N = N0 * np.exp(-lam * t)
+
+plt.plot(t, N, label="N(t)")
+plt.axhline(N0/2, ls="--", color="gray")
+plt.axvline(t12, ls="--", color="gray")
+plt.xlabel("t (jours)")
+plt.ylabel("N")
+plt.title("Décroissance radioactive")
+plt.grid(True)
+plt.legend()
+plt.show()
+` },
+  { titre: "Régression : loi d'Ohm", code:
+`import numpy as np
+import matplotlib.pyplot as plt
+
+# Mesures (I en A, U en V)
+I = np.array([0.00, 0.02, 0.04, 0.06, 0.08, 0.10])
+U = np.array([0.00, 0.95, 2.05, 2.98, 4.02, 5.01])
+
+a, b = np.polyfit(I, U, 1)      # modèle U = a*I + b
+print(f"Modèle : U = {a:.1f} × I + {b:.2f}")
+print(f"Résistance estimée : R ≈ {a:.0f} Ω")
+
+plt.plot(I, U, "o", label="mesures")
+plt.plot(I, a*I + b, "-", label="modèle linéaire")
+plt.xlabel("I (A)")
+plt.ylabel("U (V)")
+plt.legend()
+plt.grid(True)
+plt.show()
+` },
+  { titre: "Chute libre (méthode d'Euler)", code:
+`import matplotlib.pyplot as plt
+
+g = 9.81      # m/s²
+dt = 0.01     # pas de temps (s)
+t, z, v = 0.0, 0.0, 15.0   # lancer vertical vers le haut à 15 m/s
+
+T, Z = [t], [z]
+while z >= 0:
+    v = v - g * dt
+    z = z + v * dt
+    t = t + dt
+    T.append(t)
+    Z.append(z)
+
+print(f"Durée du vol ≈ {t:.2f} s ; altitude max ≈ {max(Z):.2f} m")
+plt.plot(T, Z)
+plt.xlabel("t (s)")
+plt.ylabel("z (m)")
+plt.title("Lancer vertical")
+plt.grid(True)
+plt.show()
+` },
+];
+
+/* ---------- Éditeur ---------- */
+const editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+  mode: "python", lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false,
+  matchBrackets: true, autoCloseBrackets: true,
+  extraKeys: {
+    "Tab": cm => cm.somethingSelected() ? cm.indentSelection("add") : cm.replaceSelection("    ", "end"),
+    "Shift-Tab": cm => cm.indentSelection("subtract"),
+    "Ctrl-Enter": () => run(), "Cmd-Enter": () => run(),
+  },
+});
+const $ = id => document.getElementById(id);
+const titreEl = $("titre"), out = $("output"), statusEl = $("status");
+
+/* ---------- Taille du texte (pratique au vidéoprojecteur) ---------- */
+let fs = 16;
+try { fs = parseInt(localStorage.getItem(FS_KEY)) || 16; } catch(e) {}
+function applyFs(){ document.documentElement.style.setProperty("--fs", fs + "px"); editor.refresh(); try{localStorage.setItem(FS_KEY, fs);}catch(e){} }
+$("btnBigger").onclick = () => { fs = Math.min(fs + 2, 34); applyFs(); };
+$("btnSmaller").onclick = () => { fs = Math.max(fs - 2, 11); applyFs(); };
+applyFs();
+
+/* ---------- Console ---------- */
+let pending = [];        // [classe, texte] en attente d'affichage
+function push(text, cls = "") { if (text) pending.push([cls, text]); }
+function flush() {
+  for (const [cls, text] of pending) {
+    const last = out.lastChild;
+    if (last && last.tagName === "SPAN" && last.className === cls) last.textContent += text;
+    else { const s = document.createElement("span"); if (cls) s.className = cls; s.textContent = text; out.appendChild(s); }
+  }
+  pending = [];
+  out.scrollTop = out.scrollHeight;
+}
+function clearConsole(){ pending = []; out.textContent = ""; }
+function setStatus(txt, state){ statusEl.textContent = txt; statusEl.className = state || ""; }
+$("btnClear").onclick = clearConsole;
+
+const decOut = new TextDecoder(), decErr = new TextDecoder();
+
+/* Fonctions appelées depuis Python */
+window.afficherImage = function (b64) {
+  flush();
+  const img = document.createElement("img");
+  img.src = "data:image/png;base64," + b64;
+  out.appendChild(img);
+  out.scrollTop = out.scrollHeight;
+};
+window.demanderSaisie = function (msg) {
+  flush();
+  // La page est figée pendant l'exécution : on rappelle les dernières lignes affichées dans la boîte de saisie
+  const lignes = out.textContent.split("\n").slice(-4).join("\n");
+  return window.prompt(lignes || msg || "Saisie :", "");
+};
+window.ecrireSaisie = function (txt) { push(txt, "saisie"); };
+
+/* ---------- Python (Pyodide) ---------- */
+const SETUP = String.raw`
+import builtins, sys, js
+
+def _input(msg=""):
+    msg = str(msg)
+    sys.stdout.write(msg)
+    sys.stdout.flush()
+    r = js.demanderSaisie(msg)
+    if r is None:
+        raise KeyboardInterrupt("saisie annulée")
+    r = str(r)
+    js.ecrireSaisie(r + "\n")
+    return r
+builtins.input = _input
+
+def _repl_eval(src, ns):
+    import ast
+    tree = ast.parse(src, "<console>", "exec")
+    if tree.body and isinstance(tree.body[-1], ast.Expr):
+        last = ast.Expression(tree.body.pop().value)
+        exec(compile(tree, "<console>", "exec"), ns)
+        v = eval(compile(last, "<console>", "eval"), ns)
+        if v is not None:
+            ns["_"] = v
+            print(repr(v))
+    else:
+        exec(compile(tree, "<console>", "exec"), ns)
+
+def _flush():
+    sys.stdout.flush(); sys.stderr.flush()
+`;
+const MPL_SETUP = String.raw`
+import os
+os.environ["MPLBACKEND"] = "Agg"
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import io, base64, js
+
+def _show(*args, **kwargs):
+    for n in plt.get_fignums():
+        f = plt.figure(n)
+        b = io.BytesIO()
+        f.savefig(b, format="png", dpi=110, bbox_inches="tight")
+        js.afficherImage(base64.b64encode(b.getvalue()).decode("ascii"))
+    plt.close("all")
+plt.show = _show
+
+def _show_remaining():
+    if plt.get_fignums():
+        _show()
+`;
+
+let pyodide = null, ns = null, mplReady = false, running = false;
+
+function execInternal(src) {
+  // Le nom de fichier commence par /lib/python… pour être masqué des messages d'erreur
+  pyodide.globals.set("_LABO_SRC", src);
+  pyodide.runPython('exec(compile(_LABO_SRC, "/lib/python-labo/labo.py", "exec"), globals())');
+}
+
+function cleanTrace(msg) {
+  const L = msg.split("\n"), res = [];
+  for (let i = 0; i < L.length; i++) {
+    if (/^\s*File "\/lib\/python/.test(L[i])) {
+      while (i + 1 < L.length && /^\s{4,}\S/.test(L[i + 1]) && !/^\s*File "/.test(L[i + 1])) i++;
+      continue;
+    }
+    res.push(L[i].replace(/File "<exec>", line (\d+)/, "Ligne $1").replace(/File "<console>", line (\d+)/, "Console, ligne $1"));
+  }
+  return res.join("\n").replace(/\n+$/, "") + "\n";
+}
+
+async function init() {
+  try {
+    pyodide = await loadPyodide({ indexURL: PYODIDE_URL });
+    pyodide.setStdout({ raw: c => push(decOut.decode(new Uint8Array([c]), { stream: true })) });
+    pyodide.setStderr({ raw: c => push(decErr.decode(new Uint8Array([c]), { stream: true }), "err") });
+    execInternal(SETUP);
+    ns = pyodide.globals.get("dict")();
+    ns.set("__name__", "__main__");
+    const v = pyodide.runPython("import sys; sys.version.split()[0]");
+    setStatus("Python " + v + " prêt", "ready");
+    $("btnRun").disabled = false;
+    $("replInput").disabled = false;
+  } catch (e) {
+    setStatus("Échec du chargement", "");
+    push("Impossible de charger Python (connexion Internet nécessaire).\n" + e + "\n", "err");
+    flush();
+  }
+}
+
+async function prepare(src) {
+  await pyodide.loadPackagesFromImports(src, {
+    messageCallback: m => { if (/^Loading/.test(m)) setStatus("Chargement des modules…", "busy"); },
+    errorCallback: () => {},
+  });
+  if (!mplReady && pyodide.loadedPackages.matplotlib) {
+    setStatus("Préparation de matplotlib…", "busy");
+    await new Promise(r => setTimeout(r, 20));
+    execInternal(MPL_SETUP);
+    mplReady = true;
+  }
+}
+
+async function run() {
+  if (!pyodide || running) return;
+  running = true;
+  $("btnRun").disabled = true;
+  clearConsole();
+  setStatus("Exécution…", "busy");
+  await new Promise(r => setTimeout(r, 30)); // laisse le navigateur afficher l'état
+  const src = editor.getValue();
+  const t0 = performance.now();
+  let ok = true;
+  try {
+    await prepare(src);
+    setStatus("Exécution…", "busy");
+    await new Promise(r => setTimeout(r, 10));
+    if (ns) ns.destroy();
+    ns = pyodide.globals.get("dict")();
+    ns.set("__name__", "__main__");
+    await pyodide.runPythonAsync(src, { globals: ns });
+    if (mplReady) pyodide.runPython("_show_remaining()");
+  } catch (e) {
+    ok = false;
+    try { pyodide.runPython("_flush()"); } catch (_) {}
+    push(cleanTrace(String(e.message || e)), "err");
+  }
+  try { pyodide.runPython("_flush()"); } catch (_) {}
+  const dt = ((performance.now() - t0) / 1000).toFixed(2);
+  push((out.textContent || pending.length ? "\n" : "") + (ok ? `— Programme terminé (${dt} s) —` : "— Programme interrompu par une erreur —") + "\n", "info");
+  flush();
+  setStatus(ok ? "Prêt" : "Erreur", ok ? "ready" : "");
+  running = false;
+  $("btnRun").disabled = false;
+}
+$("btnRun").onclick = run;
+
+/* ---------- Console interactive (>>>) ---------- */
+const history = []; let hIdx = 0;
+$("replInput").addEventListener("keydown", async e => {
+  const inp = e.target;
+  if (e.key === "ArrowUp") { if (hIdx > 0) { hIdx--; inp.value = history[hIdx]; } e.preventDefault(); return; }
+  if (e.key === "ArrowDown") { if (hIdx < history.length) { hIdx++; inp.value = history[hIdx] || ""; } e.preventDefault(); return; }
+  if (e.key !== "Enter" || running || !pyodide) return;
+  const src = inp.value; if (!src.trim()) return;
+  history.push(src); hIdx = history.length; inp.value = "";
+  push(">>> " + src + "\n", "prompt"); flush();
+  running = true;
+  try {
+    await prepare(src);
+    pyodide.globals.get("_repl_eval")(src, ns);
+    if (mplReady) pyodide.runPython("_show_remaining()");
+  } catch (err) {
+    try { pyodide.runPython("_flush()"); } catch (_) {}
+    push(cleanTrace(String(err.message || err)), "err");
+  }
+  try { pyodide.runPython("_flush()"); } catch (_) {}
+  flush(); setStatus("Prêt", "ready"); running = false;
+});
+
+/* ---------- Partage par lien (le code est compressé dans l'adresse) ---------- */
+function b64url(u8) {
+  let bin = ""; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function fromB64url(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
+  const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u;
+}
+async function encodeCode(text) {
+  const bytes = new TextEncoder().encode(text);
+  if ("CompressionStream" in window) {
+    try {
+      const st = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+      return "z" + b64url(new Uint8Array(await new Response(st).arrayBuffer()));
+    } catch (e) {}
+  }
+  return "p" + b64url(bytes);
+}
+async function decodeCode(s) {
+  const kind = s[0], bytes = fromB64url(s.slice(1));
+  if (kind === "z") {
+    const st = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new TextDecoder().decode(await new Response(st).arrayBuffer());
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+$("btnShare").onclick = async () => {
+  const params = new URLSearchParams();
+  params.set("code", await encodeCode(editor.getValue()));
+  if (titreEl.value.trim()) params.set("titre", titreEl.value.trim());
+  const url = location.origin + location.pathname + "#" + params.toString();
+  $("mLink").value = url;
+  const w = $("mWarn"); w.hidden = true;
+  if (location.protocol === "file:") { w.hidden = false; w.textContent = "⚠ Cette page est ouverte depuis votre ordinateur : le lien ne fonctionnera que chez vous. Mettez la page en ligne (par ex. GitHub Pages) pour obtenir un lien partageable."; }
+  else if (url.length > 8000) { w.hidden = false; w.textContent = `⚠ Lien très long (${url.length} caractères) : il peut être tronqué par certaines messageries. Préférez le fichier .py pour les longs programmes.`; }
+  $("mCopy").textContent = "Copier le lien";
+  $("modal").hidden = false;
+  $("mLink").select();
+};
+$("mCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("mLink").value); $("mCopy").textContent = "✓ Copié !"; }
+  catch (e) { $("mLink").select(); document.execCommand && document.execCommand("copy"); $("mCopy").textContent = "✓ Copié (Ctrl+C sinon)"; }
+};
+$("mClose").onclick = () => { $("modal").hidden = true; };
+$("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").hidden = true; });
+
+/* ---------- Fichiers ---------- */
+function nomFichier() {
+  const t = (titreEl.value.trim() || "programme").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w-]+/g, "_");
+  return t + ".py";
+}
+$("btnDownload").onclick = () => {
+  const blob = new Blob([editor.getValue()], { type: "text/x-python;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nomFichier();
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$("btnOpen").onclick = () => $("fileInput").click();
+$("fileInput").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  editor.setValue(await f.text()); titreEl.value = f.name.replace(/\.(py|txt)$/i, ""); e.target.value = "";
+};
+$("btnNew").onclick = () => {
+  if (editor.getValue().trim() && !window.confirm("Effacer le programme en cours ?")) return;
+  editor.setValue(""); titreEl.value = ""; clearConsole(); editor.focus();
+};
+
+/* ---------- Exemples ---------- */
+const sel = $("exemples");
+EXEMPLES.forEach((ex, i) => { const o = document.createElement("option"); o.value = i; o.textContent = ex.titre; sel.appendChild(o); });
+sel.onchange = () => {
+  const ex = EXEMPLES[sel.value]; sel.value = ""; if (!ex) return;
+  editor.setValue(ex.code); titreEl.value = ex.titre; clearConsole();
+};
+
+/* ---------- Brouillon automatique + ouverture d'un lien ---------- */
+let fromLink = false, saveTimer = null;
+function saveDraft() {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ code: editor.getValue(), titre: titreEl.value })); } catch (e) {}
+}
+function onEdit() {
+  // dès qu'on modifie un programme reçu par lien, on retire le lien de l'adresse (la version d'origine reste intacte)
+  if (fromLink) { fromLink = false; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+  clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 400);
+}
+async function loadFromHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (!p.get("code")) return false;
+  try {
+    const code = await decodeCode(p.get("code"));
+    editor.setValue(code); titreEl.value = p.get("titre") || "";
+    document.title = (titreEl.value ? titreEl.value + " – " : "") + "Labo Python";
+    fromLink = true; return true;
+  } catch (e) { push("Lien de partage illisible ou incomplet.\n", "err"); flush(); return false; }
+}
+(async () => {
+  if (!(await loadFromHash())) {
+    let d = null; try { d = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch (e) {}
+    if (d && d.code && d.code.trim()) { editor.setValue(d.code); titreEl.value = d.titre || ""; }
+    else { editor.setValue(EXEMPLES[0].code); titreEl.value = ""; }
+  }
+  editor.on("change", onEdit);
+  titreEl.addEventListener("input", onEdit);
+  window.addEventListener("hashchange", async () => { if (await loadFromHash()) clearConsole(); });
+  init();
+})();
+</script>
+</body>
+</html>
