@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>Labo Python</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <style>
@@ -103,12 +103,30 @@
   .card button.primary{background:#2d7be5;border-color:#2d7be5;color:#fff;font-weight:600}
   .warn{color:#c9302c!important}
 
+  #keys,#mnav{display:none}
+  /* ----- téléphone : une seule zone à la fois (Code / Résultat) ----- */
   @media (max-width:820px){
-    main{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
+    main{grid-template-columns:1fr;grid-template-rows:1fr}
     #splitter{display:none}
-    #editorPane{border-bottom:4px solid #eee}
-    .cell > button{padding:0 11px}
-    #status{display:none}
+    body.vueResult #editorPane{display:none}
+    body:not(.vueResult) #resultPane{display:none}
+    .logo,#btnToggleCode{display:none}
+    #bar{height:44px}
+    .cell > button{padding:0 13px}
+    #status{max-width:34vw;padding:0 6px;font-size:11px}
+    #btnRemix{font-size:14px}
+    .tabbar{height:40px}
+    .tab{padding:7px 10px 6px;font-size:14px}
+    #banner{font-size:12px;padding:5px 8px}
+    .drop{max-width:calc(100vw - 8px)}
+    #output{padding:10px}
+    #mnav{display:flex;border-top:1px solid var(--line);background:#f6f6f6;flex:none}
+    #mnav button{flex:1;border:none;background:none;padding:11px 6px;font-size:15px;color:#777;border-top:3px solid transparent}
+    #mnav button.on{color:#111;border-top-color:#111;background:#fff;font-weight:600}
+    #keys{display:flex;gap:5px;overflow-x:auto;padding:5px 6px;background:#ececec;border-top:1px solid var(--line);flex:none;-webkit-overflow-scrolling:touch}
+    #keys button{flex:none;min-width:42px;height:38px;border:1px solid #c8c8c8;border-radius:6px;background:#fff;font-family:"Source Code Pro",Consolas,monospace;font-size:17px;padding:0 8px;touch-action:manipulation}
+    #keys button:active{background:#dde8f7}
+    body.lectureSeule #keys{display:none}
   }
 </style>
 </head>
@@ -170,6 +188,14 @@
       <button id="btnUpload" title="Ajouter un fichier depuis l'ordinateur">⇪</button>
     </div>
     <textarea id="code"></textarea>
+    <div id="keys" aria-label="Touches pour Python">
+      <button data-k="tab" title="Indenter">⇥</button><button data-k="untab" title="Désindenter">⇤</button>
+      <button data-k=":">:</button><button data-k="()">( )</button><button data-k="[]">[ ]</button>
+      <button data-k='""'>" "</button><button data-k="=">=</button><button data-k="#">#</button>
+      <button data-k="+">+</button><button data-k="-">−</button><button data-k="*">*</button><button data-k="/">/</button>
+      <button data-k="**">**</button><button data-k="<">&lt;</button><button data-k=">">&gt;</button><button data-k=",">,</button>
+      <button data-k="left" title="Curseur à gauche">←</button><button data-k="right" title="Curseur à droite">→</button>
+    </div>
   </section>
   <div id="splitter" title="Glisser pour redimensionner"></div>
   <section id="resultPane">
@@ -177,6 +203,7 @@
     <div id="repl"><span>&gt;&gt;&gt;</span><input id="replInput" disabled placeholder="Console : tapez une instruction puis Entrée" autocomplete="off" spellcheck="false"></div>
   </section>
 </main>
+<nav id="mnav"><button id="navCode" class="on">📝 Code</button><button id="navResult">▶ Résultat</button></nav>
 
 <div id="modal" hidden>
   <div class="card" role="dialog" aria-labelledby="mTitle">
@@ -304,6 +331,7 @@ plt.show()
 const editor = CodeMirror.fromTextArea($("code"), {
   mode: "python", lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false,
   matchBrackets: true, autoCloseBrackets: true, styleActiveLine: true,
+  spellcheck: false, autocorrect: false, autocapitalize: false,
   extraKeys: {
     "Tab": cm => cm.somethingSelected() ? cm.indentSelection("add") : cm.replaceSelection("    ", "end"),
     "Shift-Tab": cm => cm.indentSelection("subtract"),
@@ -404,6 +432,40 @@ $("splitter").addEventListener("pointerdown", e => {
   sp.addEventListener("pointermove", mv); sp.addEventListener("pointerup", up);
 });
 $("btnToggleCode").onclick = () => { document.body.classList.toggle("codeHidden"); editor.refresh(); };
+
+/* ---------- Téléphone : onglets Code / Résultat, barre de touches ---------- */
+const petitEcran = () => window.matchMedia("(max-width:820px)").matches;
+function vue(v) {
+  document.body.classList.toggle("vueResult", v === "result");
+  $("navCode").classList.toggle("on", v !== "result");
+  $("navResult").classList.toggle("on", v === "result");
+  if (v !== "result") setTimeout(() => editor.refresh(), 0);
+}
+$("navCode").onclick = () => vue("code");
+$("navResult").onclick = () => vue("result");
+$("keys").addEventListener("pointerdown", e => { if (e.target.closest("button")) e.preventDefault(); }); // garde le clavier ouvert
+$("keys").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || editor.getOption("readOnly")) return;
+  const k = b.dataset.k;
+  if (k === "tab") editor.replaceSelection("    ", "end");
+  else if (k === "untab") editor.execCommand("indentLess");
+  else if (k === "left") editor.execCommand("goCharLeft");
+  else if (k === "right") editor.execCommand("goCharRight");
+  else if (["()", "[]", '""'].includes(k)) {
+    const s = editor.getSelection();
+    editor.replaceSelection(k[0] + s + k[1]);
+    if (!s) { const c = editor.getCursor(); editor.setCursor({ line: c.line, ch: c.ch - 1 }); }
+  } else editor.replaceSelection(k, "end");
+  editor.focus();
+});
+if (window.visualViewport) {   // le clavier du téléphone ne doit pas cacher la barre de touches
+  const ajuster = () => {
+    if (petitEcran()) { document.body.style.height = window.visualViewport.height + "px"; window.scrollTo(0, 0); }
+    else document.body.style.height = "";
+  };
+  window.visualViewport.addEventListener("resize", ajuster);
+  ajuster();
+}
 
 /* ---------- Menus déroulants ---------- */
 const drops = [["btnMenu", "menu"], ["btnRunMenu", "runMenu"], ["btnShareMenu", "shareMenu"]];
@@ -677,6 +739,7 @@ async function run() {
   running = true; stopDemande = false;
   etatRun(true, false);
   clearConsole();
+  if (petitEcran()) { vue("result"); await sleep(20); }
   syncCur();
   const src = files[0].content;
   const moteur = moteurPour(codesPython());
@@ -906,7 +969,7 @@ function onEdit() {
   clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 400);
 }
 function showBanner(html, cls) { banner.innerHTML = html; banner.className = cls; banner.hidden = false; editor.refresh(); }
-function hideBanner() { banner.hidden = true; editor.setOption("readOnly", false); editor.getWrapperElement().classList.remove("ro"); editor.refresh(); }
+function hideBanner() { document.body.classList.remove("lectureSeule"); banner.hidden = true; editor.setOption("readOnly", false); editor.getWrapperElement().classList.remove("ro"); editor.refresh(); }
 function quitterFichier() {
   if (mode === "ex" || mode === "corr" || mode === "code") retirerLien();
   mode = null; fichier = null; hideBanner(); majRemix(); renderTabs();
@@ -963,6 +1026,7 @@ async function loadFromHash() {
       setProjet([{ name: "main.py", content: txt }], "Correction " + corr);
       editor.setOption("readOnly", true);
       editor.getWrapperElement().classList.add("ro");
+      document.body.classList.add("lectureSeule");
       showBanner(`<span>📖 <b>Correction ${esc(corr)}</b> — lecture seule. Vous pouvez l'exécuter avec ▶.</span><button id="bCopie">💾 Ma copie (modifiable)</button>`, "corr");
       $("bCopie").onclick = remix;
     }
