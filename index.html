@@ -809,7 +809,7 @@ function ouvrirModal(titre, info, valeur, libelle, alerte) {
 }
 async function adresseCourante(embed) {
   let h;
-  if (mode === "ex") h = "ex=" + encodeURIComponent(fichier);
+  if (mode === "ex" && !exerciceModifie()) h = "ex=" + encodeURIComponent(fichier);
   else if (mode === "corr") h = "corr=" + encodeURIComponent(fichier);
   else {
     const params = new URLSearchParams(), p = projet();
@@ -820,6 +820,7 @@ async function adresseCourante(embed) {
   }
   return location.origin + location.pathname + "#" + h + (embed ? "&embed=1" : "");
 }
+function exerciceModifie() { const p = projet(); return p.length > 1 || p[0].content !== original; }
 function alerteLien(url) {
   if (location.protocol === "file:") return "⚠ Cette page est ouverte depuis votre ordinateur : le lien ne fonctionnera que chez vous. Mettez la page en ligne (GitHub Pages) pour obtenir un lien partageable.";
   if (url.length > 8000) return `⚠ Lien très long (${url.length} caractères) : il peut être tronqué par certaines messageries. Préférez le fichier .py pour les longs programmes.`;
@@ -828,7 +829,8 @@ function alerteLien(url) {
 async function partagerLien() {
   const url = await adresseCourante(false);
   ouvrirModal("🔗 Lien de partage",
-    mode === "ex" ? "Lien de l'exercice : chaque élève qui l'ouvre obtient l'énoncé et travaille sur sa propre copie."
+    mode === "ex" && !exerciceModifie() ? "Lien de l'exercice : chaque élève qui l'ouvre obtient l'énoncé et travaille sur sa propre copie."
+    : mode === "ex" ? "Lien de VOTRE version modifiée : le programme est entièrement contenu dans ce lien. L'énoncé d'origine n'est pas modifié."
     : mode === "corr" ? "Lien de la correction (lecture seule)."
     : "Le code est entièrement contenu dans ce lien : quiconque l'ouvre retrouve le programme, peut l'exécuter et faire « Ma copie », sans toucher à votre version.",
     url, "Copier le lien", alerteLien(url));
