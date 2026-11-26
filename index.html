@@ -135,6 +135,7 @@
   <div class="cell">
     <button id="btnMenu" title="Menu">☰</button>
     <div id="menu" class="drop" hidden>
+      <button id="btnReset" hidden><span class="ico">↺</span>Repartir de l'énoncé</button>
       <button id="btnNew"><span class="ico">📄</span>Nouveau programme</button>
       <div class="mi"><span class="ico">📚</span>Exemples <select id="exemples"><option value="">choisir…</option></select></div>
       <div class="mi"><span class="ico">✎</span>Titre <input id="titre" placeholder="Sans titre" maxlength="80"></div>
@@ -974,7 +975,16 @@ function quitterFichier() {
   if (mode === "ex" || mode === "corr" || mode === "code") retirerLien();
   mode = null; fichier = null; hideBanner(); majRemix(); renderTabs();
 }
-function majRemix() { $("btnRemix").hidden = !(mode === "ex" || mode === "corr" || mode === "code"); }
+function majRemix() {
+  $("btnRemix").hidden = !(mode === "ex" || mode === "corr" || mode === "code");
+  $("btnReset").hidden = mode !== "ex";
+}
+$("btnReset").onclick = () => {
+  if (mode !== "ex") return;
+  if (window.confirm("Effacer votre travail et revenir à l'énoncé de départ ?")) {
+    setProjet([{ name: "main.py", content: original }], titreEl.value); clearConsole(); saveDraft();
+  }
+};
 function remix() {
   const p = projet(), t = titreEl.value, c = cur;
   quitterFichier();
@@ -1016,10 +1026,6 @@ async function loadFromHash() {
       const d = lireBrouillon(draftKey());
       const repris = d && (d.files.length > 1 || d.files[0].content !== original);
       setProjet(repris ? d.files : [{ name: "main.py", content: original }], "Exercice " + ex);
-      showBanner(`<span>📝 <b>Exercice ${esc(ex)}</b> — modifiez librement : votre travail est gardé sur cet appareil, le fichier du professeur n'est jamais modifié.${repris ? " <i>(Votre travail précédent a été repris.)</i>" : ""}</span><button id="bReset">↺ Repartir de l'énoncé</button>`, "ex");
-      $("bReset").onclick = () => {
-        if (window.confirm("Effacer votre travail et revenir à l'énoncé de départ ?")) { setProjet([{ name: "main.py", content: original }], "Exercice " + ex); clearConsole(); saveDraft(); }
-      };
     } else {
       const txt = await chargerFichier("corrections", corr);
       mode = "corr"; fichier = corr;
