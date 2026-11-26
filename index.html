@@ -925,12 +925,16 @@ $("btnRemix").onclick = remix;
 function nomValide(n) { return /^[\w-]+(\/[\w-]+)*(\.py)?$/.test(n); }
 async function chargerFichier(dossier, nom) {
   if (!nomValide(nom)) throw new Error("Nom de fichier invalide : " + nom);
-  const chemin = dossier + "/" + (nom.endsWith(".py") ? nom : nom + ".py");
-  let r;
-  try { r = await fetch(chemin, { cache: "no-cache" }); }
-  catch (e) { throw new Error("Impossible de lire « " + chemin + " » (la page doit être en ligne, par ex. sur GitHub Pages)."); }
-  if (!r.ok) throw new Error("Fichier introuvable : " + chemin);
-  return await r.text();
+  // « ex1 » → exercices/ex1.py ; « mon-dossier/ex1 » → mon-dossier/ex1.py (chemin depuis la racine du dépôt)
+  const base = nom.includes("/") ? nom : dossier + "/" + nom;
+  const essais = base.endsWith(".py") ? [base] : [base + ".py", base];
+  for (const chemin of essais) {
+    let r;
+    try { r = await fetch(chemin, { cache: "no-cache" }); }
+    catch (e) { throw new Error("Impossible de lire « " + chemin + " » (la page doit être en ligne, par ex. sur GitHub Pages)."); }
+    if (r.ok) return await r.text();
+  }
+  throw new Error("Fichier introuvable : " + essais[0] + " (vérifiez le nom du dossier et du fichier, majuscules comprises).");
 }
 async function loadFromHash() {
   const p = new URLSearchParams(location.hash.slice(1));
