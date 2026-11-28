@@ -110,7 +110,7 @@
     #splitter{display:none}
     body.vueResult #editorPane{display:none}
     body:not(.vueResult) #resultPane{display:none}
-    .logo,#btnToggleCode{display:none}
+    .logo,#btnToggleCode,#btnReset2 .lbl{display:none}
     #bar{height:44px}
     .cell > button{padding:0 13px}
     #status{max-width:34vw;padding:0 6px;font-size:11px}
@@ -155,6 +155,7 @@
       <button data-act="run"><span class="ico">▶</span>Exécuter <span class="spacer"></span><small style="color:#999">Ctrl+Entrée</small></button>
       <button data-act="stop"><span class="ico">■</span>Arrêter</button>
       <button data-act="clear"><span class="ico">🧹</span>Effacer le résultat</button>
+      <button data-act="reset" id="btnReset3" hidden><span class="ico">↺</span>Réinitialiser (revenir à l'énoncé)</button>
     </div>
   </div>
   <div class="cell">
@@ -170,6 +171,7 @@
       <button id="btnDownload2"><span class="ico">⬇</span>Télécharger le fichier .py</button>
     </div>
   </div>
+  <div class="cell"><button id="btnReset2" class="txt" hidden title="Effacer mes modifications et revenir à l'énoncé de départ">↺<span class="lbl"> Réinitialiser</span></button></div>
   <span class="spacer"></span>
   <span id="status" class="busy">Chargement…</span>
   <div class="cell right"><button id="btnRemix" class="txt" hidden title="Créer ma propre copie modifiable">💾 Ma copie</button></div>
@@ -478,7 +480,7 @@ drops.forEach(([b, m]) => {
 document.addEventListener("click", e => { if (!e.target.closest(".drop")) fermerMenus(); });
 $("runMenu").addEventListener("click", e => {
   const a = e.target.closest("button") && e.target.closest("button").dataset.act;
-  if (a === "run") run(); else if (a === "stop") arreter(); else if (a === "clear") clearConsole();
+  if (a === "run") run(); else if (a === "stop") arreter(); else if (a === "clear") clearConsole(); else if (a === "reset") reinitialiser();
 });
 $("btnFull").onclick = () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} };
 
@@ -977,14 +979,18 @@ function quitterFichier() {
 }
 function majRemix() {
   $("btnRemix").hidden = !(mode === "ex" || mode === "corr" || mode === "code");
-  $("btnReset").hidden = mode !== "ex";
+  $("btnReset").hidden = $("btnReset2").hidden = $("btnReset3").hidden = mode !== "ex";
 }
-$("btnReset").onclick = () => {
+function reinitialiser() {
   if (mode !== "ex") return;
-  if (window.confirm("Effacer votre travail et revenir à l'énoncé de départ ?")) {
-    setProjet([{ name: "main.py", content: original }], titreEl.value); clearConsole(); saveDraft();
-  }
-};
+  if (!window.confirm("Effacer toutes vos modifications et revenir à l'énoncé de départ ?")) return;
+  setProjet([{ name: "main.py", content: original }], titreEl.value);
+  clearConsole();
+  try { localStorage.removeItem(draftKey()); } catch (e) {}
+  push("↺ Programme réinitialisé : voici l'énoncé de départ.\n", "info"); flush();
+}
+$("btnReset").onclick = reinitialiser;
+$("btnReset2").onclick = reinitialiser;
 function remix() {
   const p = projet(), t = titreEl.value, c = cur;
   quitterFichier();
@@ -1026,6 +1032,7 @@ async function loadFromHash() {
       const d = lireBrouillon(draftKey());
       const repris = d && (d.files.length > 1 || d.files[0].content !== original);
       setProjet(repris ? d.files : [{ name: "main.py", content: original }], "Exercice " + ex);
+      if (repris) { push("Votre travail précédent a été repris. Pour revenir à l'énoncé de départ : bouton ↺ Réinitialiser.\n", "info"); flush(); }
     } else {
       const txt = await chargerFichier("corrections", corr);
       mode = "corr"; fichier = corr;
