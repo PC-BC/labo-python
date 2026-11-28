@@ -5,7 +5,7 @@ volume = [0.0002, 0.0004, 0.0006, 0.0008, 0.001]
 pression = [307000, 150000, 101700, 75800, 61000]
 temperature = [300, 280, 260, 240, 225]
 
-n = (P*V)/(8.31*T)
+n = (pression*volume)/(8.31*temperature)
 
 # Affichage du graphique
 plt.xlabel('T (en K)')
